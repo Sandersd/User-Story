@@ -20,10 +20,21 @@ function createToken(user) {
 	return token;
 }
 
-module.exports = function(app, express) {
+module.exports = function(app, express, io) {
 
   var api = express.Router();
 
+  api.get('/all', function(req, res) {
+
+    Story.find({}, function(err, stories) {
+
+      if(err) {
+        res.send(err);
+        return;
+      }
+      res.json(stories);
+    });
+  });
 
   //Sign Up API
   api.post('/signup', function(req, res) {
@@ -36,6 +47,8 @@ module.exports = function(app, express) {
 
     });
 
+    var token = createToken(user);
+
     user.save(function(err) {
 
       if(err) {
@@ -43,7 +56,10 @@ module.exports = function(app, express) {
         return;
       }
 
-      res.json( { message: 'User has been created!' });
+      res.json( { 
+        success: true,
+        message: 'User has been created!',
+        token: token });
 
     });
   });
@@ -65,7 +81,7 @@ module.exports = function(app, express) {
   api.post('/login', function(req, res) {
     User.findOne({
     	username: req.body.username
-    }).select('password').exec(function(err, user) {
+    }).select('name username password').exec(function(err, user) {
     	if(err) throw err;
 
     	if(!user) {
@@ -120,12 +136,12 @@ module.exports = function(app, express) {
   			content: req.body.content,
   		});
 
-  		story.save(function(err) {
+  		story.save(function(err, newStory) {
   			if(err) {
   				res.send(err);
   				return;
   			}
-
+        io.emit('story', newStory)
   			res.json({ message: "Story saved"});
   		});
   	})
